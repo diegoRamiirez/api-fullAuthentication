@@ -6,7 +6,7 @@ export class AuthService {
 
     async signup() {
         return { message : 'signup was succefull' };
-    }
+}
     async signin() {
         return '';
     }
