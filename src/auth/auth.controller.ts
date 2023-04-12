@@ -19,6 +19,4 @@ export class AuthController {
   signuot() {
     return this.authService.signout();
   }
-
-
 }
