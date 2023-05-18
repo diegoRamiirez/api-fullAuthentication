@@ -1,21 +1,22 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { AuthDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { jwtSecret } from '../utils/constants';
+import { Request, Response } from 'express';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwt: JwtService) {}
+  constructor(private prisma: PrismaService, private jwt: JwtService) { }
 
-  async signup(dto:AuthDto) {
-    const { email , password } = dto;
+  async signup(dto: AuthDto) {
+    const { email, password } = dto;
 
-    const foundUser = await this.prisma.user.findUnique({where: {email}})
+    const foundUser = await this.prisma.user.findUnique({ where: { email } })
 
-    if(foundUser){
+    if (foundUser) {
       throw new BadRequestException('Email already exists');
     }
 
@@ -30,30 +31,39 @@ export class AuthService {
 
     return { message: 'signup was succefull' };
   }
-  async signin(dto: AuthDto) {
-    const {email,password} = dto
+  async signin(dto: AuthDto, req: Request, res: Response) {
+    const { email, password } = dto
 
-    const foundUser = await this.prisma.user.findUnique({where: {email}})
+    const foundUser = await this.prisma.user.findUnique({ where: { email } })
 
-    if(!foundUser){
+    if (!foundUser) {
       throw new BadRequestException('wrong Credentials');
     }
 
-    const isMatch = await this.comparePasswords({password,hash: foundUser.hashedPassword});
+    const isMatch = await this.comparePasswords({ password, hash: foundUser.hashedPassword });
 
-    if(!isMatch){
+    if (!isMatch) {
       throw new BadRequestException('wrong Credentials');
     }
 
+    const token = await this.singToken({
+      id: foundUser.id,
+      email: foundUser.email,
+    })
 
+    if (!token) {
+      throw new ForbiddenException()
+    }
 
-    return '';
+    res.cookie('token', token)
+
+    return res.send({ message: 'Logged in succefully' });
   }
   async signout() {
     return '';
   }
 
-  async hashPassword(password:string) {
+  async hashPassword(password: string) {
     const saltOrRounds = 10;
 
     const hashedPassword = await bcrypt.hash(password, saltOrRounds);
@@ -61,14 +71,14 @@ export class AuthService {
     return hashedPassword;
 
   }
-  
-  async comparePasswords(args: {password:string ,hash:string}){
-    return await bcrypt.compare(args.password,args.hash );
+
+  async comparePasswords(args: { password: string, hash: string }) {
+    return await bcrypt.compare(args.password, args.hash);
   }
 
-  async singToken( args: {id:string, email: string}){
+  async singToken(args: { id: string, email: string }) {
     const payload = args;
 
-    this.jwt.signAsync(payload, {secret: jwtSecret})
+    return this.jwt.signAsync(payload, { secret: jwtSecret })
   }
 }
