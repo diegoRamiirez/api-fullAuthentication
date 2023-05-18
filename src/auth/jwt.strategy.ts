@@ -10,7 +10,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
                 JwtStrategy.extractJWT,
-
             ]),
             secretOrKey: jwtSecret,
         })
